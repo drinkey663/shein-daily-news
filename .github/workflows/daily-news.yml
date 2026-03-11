@@ -1,0 +1,29 @@
+name: SHEIN Daily News
+
+on:
+  schedule:
+    # 每天北京时间 9:30 (UTC 1:30)
+    - cron: '30 1 * * *'
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  send-news:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run news script
+        env:
+          DINGTALK_ACCESS_TOKEN: ${{ secrets.DINGTALK_ACCESS_TOKEN }}
+          DINGTALK_SECRET: ${{ secrets.DINGTALK_SECRET }}
+        run: python scripts/shein_daily_news.py
