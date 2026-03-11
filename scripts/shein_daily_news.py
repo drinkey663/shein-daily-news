@@ -20,9 +20,13 @@ import hmac
 import hashlib
 import base64
 import re
+import http.client
 from datetime import datetime, timedelta
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode, quote
 from xml.etree import ElementTree as ET
+
+# 修复 Business of Fashion 等返回过多 headers 的问题
+http.client._MAXHEADERS = 200
 
 # ==================== 配置区域 ====================
 # 钉钉机器人配置（从环境变量读取，也支持直接设置）
@@ -98,16 +102,6 @@ RSS_SOURCES = {
         "rss_url": "https://woocommerce.com/blog/feed/",
         "keywords": ["SHEIN", "希音", "shein"]
     },
-    "amazon_seller": {
-        "name": "Amazon Seller News",
-        "rss_url": "https://sellercentral.amazon.com/seller-news/feed",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "ebay_seller": {
-        "name": "eBay Seller Center",
-        "rss_url": "https://export.ebay.com/en/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
 
     # 电商行业英文媒体
     "practical_ecommerce": {
@@ -150,11 +144,6 @@ RSS_SOURCES = {
     "ennews": {
         "name": "亿恩网",
         "rss_url": "https://www.ennews.com/rss",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "amz123": {
-        "name": "AMZ123资讯",
-        "rss_url": "https://www.amz123.com/feed",
         "keywords": ["SHEIN", "希音", "shein"]
     },
 
@@ -239,8 +228,8 @@ def generate_sign(timestamp, secret):
     return sign
 
 
-def send_dingtalk_message(content):
-    """发送钉钉消息"""
+def send_dingtalk_message(title, markdown_text):
+    """发送钉钉 Markdown 消息"""
     timestamp = str(round(time.time() * 1000))
     sign = generate_sign(timestamp, SECRET)
 
@@ -252,9 +241,10 @@ def send_dingtalk_message(content):
         "Content-Type": "application/json; charset=utf-8"
     }
     data = {
-        "msgtype": "text",
-        "text": {
-            "content": content
+        "msgtype": "markdown",
+        "markdown": {
+            "title": title,
+            "text": markdown_text
         }
     }
 
@@ -270,18 +260,71 @@ def fetch_rss_news(source_name, source_config):
     news_list = []
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8",
+            "Referer": "https://www.google.com/",
+            "Cache-Control": "max-age=0",
         }
-        response = requests.get(source_config["rss_url"], headers=headers, timeout=15)
-        response.encoding = 'utf-8'
-        
-        # 解析RSS
+
+        # 请求带重试（应对不稳定连接）
+        response = None
+        for attempt in range(2):
+            try:
+                response = requests.get(source_config["rss_url"], headers=headers, timeout=15)
+                break
+            except (requests.ConnectionError, requests.Timeout) as e:
+                if attempt == 0:
+                    time.sleep(2)
+                else:
+                    raise
+
+        if response is None:
+            return news_list
+
+        raw_bytes = response.content
+
+        # GBK/GB2312 编码预处理
+        enc_match = re.search(rb'encoding=["\']([^"\']+)["\']', raw_bytes[:200])
+        if enc_match:
+            declared_enc = enc_match.group(1).decode('ascii').lower()
+            if declared_enc in ('gbk', 'gb2312', 'gb18030'):
+                text_content = raw_bytes.decode(declared_enc, errors='replace')
+                text_content = re.sub(r'encoding=["\'][^"\']+["\']', 'encoding="utf-8"', text_content)
+                raw_bytes = text_content.encode('utf-8')
+
+        # 解析RSS（三层 fallback）
+        root = None
+        # 第一层：直接解析
         try:
-            root = ET.fromstring(response.content)
+            root = ET.fromstring(raw_bytes)
         except ET.ParseError:
-            # 尝试清理内容后再解析
-            content = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', response.text)
-            root = ET.fromstring(content.encode('utf-8'))
+            pass
+
+        # 第二层：清理控制字符后重试
+        if root is None:
+            try:
+                cleaned = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', raw_bytes.decode('utf-8', errors='replace'))
+                root = ET.fromstring(cleaned.encode('utf-8'))
+            except ET.ParseError:
+                pass
+
+        # 第三层：截断到根闭合标签（修复 Shopify Atom "junk after document element"）
+        if root is None:
+            text_for_truncate = raw_bytes.decode('utf-8', errors='replace')
+            for closing_tag in ['</feed>', '</rss>']:
+                idx = text_for_truncate.rfind(closing_tag)
+                if idx != -1:
+                    try:
+                        truncated = text_for_truncate[:idx + len(closing_tag)]
+                        root = ET.fromstring(truncated.encode('utf-8'))
+                        break
+                    except ET.ParseError:
+                        continue
+
+        if root is None:
+            print(f"[{datetime.now()}] 获取{source_name}新闻失败: XML解析全部失败")
+            return news_list
         
         # 处理不同RSS格式
         items = root.findall('.//item')
@@ -335,13 +378,19 @@ def fetch_rss_news(source_name, source_config):
             if pub_datetime is None:
                 continue
                 
-            # 检查是否在48小时内
+            # 检查是否在时间窗口内
             time_diff = datetime.now() - pub_datetime
             if time_diff > timedelta(hours=TIME_WINDOW_HOURS):
                 continue
             
             # 清理描述中的HTML标签
             clean_desc = re.sub(r'<[^>]+>', '', description) if description else ""
+
+            # 翻译英文内容
+            if is_english_text(title):
+                title = translate_to_chinese(title)
+                if clean_desc:
+                    clean_desc = translate_to_chinese(clean_desc[:200])
             
             news_list.append({
                 "title": title.strip(),
@@ -403,7 +452,10 @@ def fetch_newsapi_news():
 
 
 def parse_pub_date(pub_date_str):
-    """解析发布时间"""
+    """解析发布时间，统一返回 naive datetime"""
+    def _strip_tz(dt):
+        return dt.replace(tzinfo=None) if dt.tzinfo else dt
+
     if not pub_date_str:
         return datetime.now()
     
@@ -420,7 +472,7 @@ def parse_pub_date(pub_date_str):
     
     for fmt in date_formats:
         try:
-            return datetime.strptime(pub_date_str.strip(), fmt)
+            return _strip_tz(datetime.strptime(pub_date_str.strip(), fmt))
         except:
             continue
     
@@ -429,12 +481,43 @@ def parse_pub_date(pub_date_str):
         # 匹配 YYYY-MM-DD 格式
         match = re.search(r'(\d{4}-\d{2}-\d{2})', pub_date_str)
         if match:
-            return datetime.strptime(match.group(1), "%Y-%m-%d")
+            return _strip_tz(datetime.strptime(match.group(1), "%Y-%m-%d"))
     except:
         pass
     
     # 如果都失败了，返回当前时间（假设是最新的）
     return datetime.now()
+
+
+def is_english_text(text):
+    """检测文本是否为英文（非CJK字符占多数）"""
+    if not text:
+        return False
+    cjk_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return cjk_count / max(len(text), 1) < 0.1
+
+
+def translate_to_chinese(text):
+    """使用 Google Translate 免费 API 将文本翻译为中文"""
+    if not text or not is_english_text(text):
+        return text
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "auto",
+            "tl": "zh-CN",
+            "dt": "t",
+            "q": text[:500],
+        }
+        resp = requests.get(url, params=params, timeout=5)
+        if resp.status_code == 200:
+            result = resp.json()
+            translated = ''.join(part[0] for part in result[0] if part[0])
+            return translated
+    except Exception as e:
+        print(f"[{datetime.now()}] 翻译失败: {e}")
+    return text
 
 
 def categorize_news(title, description):
@@ -514,34 +597,35 @@ def similar(str1, str2):
 
 
 def format_news_content(news_list):
-    """格式化新闻内容"""
+    """格式化新闻内容为钉钉 Markdown 格式，返回 (title, text) 元组"""
     if not news_list:
         return None
     
     today = datetime.now().strftime("%Y年%m月%d日")
+    title = "SHEIN每日热点资讯"
     
-    content = f"📰 SHEIN每日热点资讯（{today}）\n\n"
+    text = f"# 📰 SHEIN每日热点资讯（{today}）\n\n---\n\n"
     
     for i, news in enumerate(news_list, 1):
         category = categorize_news(news["title"], news["description"])
         hours_ago = news.get("hours_ago", 0)
         time_str = f"{hours_ago}小时前" if hours_ago < 24 else f"{hours_ago // 24}天前"
         
-        content += f"{i}️⃣ 【{category}】{news['title']}\n"
+        text += f"### {i}. 【{category}】{news['title']}\n\n"
         
         # 添加描述（如果有且不太短）
         if news["description"] and len(news["description"]) > 20:
-            content += f"{news['description']}...\n"
+            text += f"{news['description']}...\n\n"
         
-        content += f"原文链接：{news['link']}\n"
-        content += f"📰 来源：{news['source']} | ⏱️ {time_str}\n\n"
+        link = news.get('link', '')
+        text += f"📰 来源：{news['source']} | ⏱️ {time_str}"
+        if link:
+            text += f" | [查看原文]({link})"
+        text += "\n\n---\n\n"
     
-    content += f"⏰ 每日推送时间：{PUSH_TIME}\n"
-    content += f"📊 监控范围：外部合作、投融资、跨境电商、监管动态\n"
-    content += f"📰 信息来源：新浪财经、36氪等权威媒体\n"
-    content += f"⏱️ 时间窗口：过去{TIME_WINDOW_HOURS}小时"
+    text += f"> ⏰ 每日推送时间：{PUSH_TIME} | 📊 监控范围：外部合作、投融资、跨境电商、监管动态 | ⏱️ 过去{TIME_WINDOW_HOURS}小时"
     
-    return content
+    return (title, text)
 
 
 def main():
@@ -561,22 +645,22 @@ def main():
     if not news_list:
         print(f"[{datetime.now()}] 过去{TIME_WINDOW_HOURS}小时内未找到SHEIN相关新闻")
         today = datetime.now().strftime("%Y年%m月%d日")
-        content = f"📰 SHEIN每日热点资讯（{today}）\n\n"
-        content += f"过去{TIME_WINDOW_HOURS}小时内暂无SHEIN相关新闻更新。\n\n"
-        content += f"⏰ 每日推送时间：{PUSH_TIME}\n"
-        content += f"📊 监控范围：外部合作、投融资、跨境电商、监管动态\n"
-        content += f"⏱️ 时间窗口：过去{TIME_WINDOW_HOURS}小时"
-        result = send_dingtalk_message(content)
+        title = "SHEIN每日热点资讯"
+        text = f"# 📰 SHEIN每日热点资讯（{today}）\n\n"
+        text += f"过去{TIME_WINDOW_HOURS}小时内暂无SHEIN相关新闻更新。\n\n"
+        text += f"> ⏰ 每日推送时间：{PUSH_TIME} | 📊 监控范围：外部合作、投融资、跨境电商、监管动态 | ⏱️ 过去{TIME_WINDOW_HOURS}小时"
+        result = send_dingtalk_message(title, text)
         print(f"[{datetime.now()}] 发送结果: {result}")
         return
     
     # 格式化内容
-    content = format_news_content(news_list)
+    result = format_news_content(news_list)
     
-    if content:
+    if result:
+        title, text = result
         # 发送钉钉消息
-        result = send_dingtalk_message(content)
-        print(f"[{datetime.now()}] 发送结果: {result}")
+        send_result = send_dingtalk_message(title, text)
+        print(f"[{datetime.now()}] 发送结果: {send_result}")
 
 
 if __name__ == "__main__":
