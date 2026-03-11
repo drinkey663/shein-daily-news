@@ -59,21 +59,11 @@ RSS_SOURCES = {
         "rss_url": "https://a.jiemian.com/index.php?m=article&a=rss",
         "keywords": ["SHEIN", "希音", "shein"]
     },
-    "21cbh": {
-        "name": "21世纪经济报道",
-        "rss_url": "https://www.21jingji.com/rss.php",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
     
     # 其他可用源
     "huxiu": {
         "name": "虎嗅",
         "rss_url": "https://www.huxiu.com/rss/0.xml",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "cls": {
-        "name": "财联社",
-        "rss_url": "https://www.cls.cn/rss/",
         "keywords": ["SHEIN", "希音", "shein"]
     },
     "geekpark": {
@@ -89,6 +79,116 @@ RSS_SOURCES = {
     "tmtpost": {
         "name": "钛媒体",
         "rss_url": "https://www.tmtpost.com/rss.xml",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # 国际电商平台博客
+    "shopify_blog": {
+        "name": "Shopify Blog",
+        "rss_url": "https://www.shopify.com/blog.atom",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "shopify_editions": {
+        "name": "Shopify Editions",
+        "rss_url": "https://www.shopify.com/editions/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "woocommerce": {
+        "name": "WooCommerce Blog",
+        "rss_url": "https://woocommerce.com/blog/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "amazon_seller": {
+        "name": "Amazon Seller News",
+        "rss_url": "https://sellercentral.amazon.com/seller-news/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "ebay_seller": {
+        "name": "eBay Seller Center",
+        "rss_url": "https://export.ebay.com/en/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # 电商行业英文媒体
+    "practical_ecommerce": {
+        "name": "Practical Ecommerce",
+        "rss_url": "https://www.practicalecommerce.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "sej_ecommerce": {
+        "name": "Search Engine Journal",
+        "rss_url": "https://www.searchenginejournal.com/category/ecommerce/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "search_engine_land": {
+        "name": "Search Engine Land",
+        "rss_url": "https://searchengineland.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "martech": {
+        "name": "MarTech",
+        "rss_url": "https://martech.org/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "retail_dive": {
+        "name": "Retail Dive",
+        "rss_url": "https://www.retaildive.com/feeds/news/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "digital_commerce_360": {
+        "name": "Digital Commerce 360",
+        "rss_url": "https://www.digitalcommerce360.com/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "modern_retail": {
+        "name": "Modern Retail",
+        "rss_url": "https://www.modernretail.co/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # 跨境电商中文媒体
+    "ennews": {
+        "name": "亿恩网",
+        "rss_url": "https://www.ennews.com/rss",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "amz123": {
+        "name": "AMZ123资讯",
+        "rss_url": "https://www.amz123.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # SHEIN官方 & 时尚零售
+    "retail_touchpoints": {
+        "name": "Retail TouchPoints",
+        "rss_url": "https://www.retailtouchpoints.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "pymnts_ecommerce": {
+        "name": "PYMNTS ECommerce",
+        "rss_url": "https://www.pymnts.com/category/news/ecommerce/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "bof": {
+        "name": "Business of Fashion",
+        "rss_url": "https://www.businessoffashion.com/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "glossy": {
+        "name": "Glossy",
+        "rss_url": "https://www.glossy.co/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # Google News 聚合
+    "google_news_shein": {
+        "name": "Google新闻(SHEIN)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "google_news_shein_temu": {
+        "name": "Google新闻(SHEIN+Temu)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+Temu",
         "keywords": ["SHEIN", "希音", "shein"]
     }
 }
