@@ -460,15 +460,14 @@ def main():
     
     if not news_list:
         print(f"[{datetime.now()}] 过去{TIME_WINDOW_HOURS}小时内未找到SHEIN相关新闻")
-        # 可选：发送提示消息（默认关闭，避免打扰）
-        # 如需开启，取消下面注释
-        # today = datetime.now().strftime("%Y年%m月%d日")
-        # content = f"📰 SHEIN每日热点资讯（{today}）\n\n"
-        # content += f"过去{TIME_WINDOW_HOURS}小时内暂无SHEIN相关新闻更新。\n\n"
-        # content += f"⏰ 每日推送时间：{PUSH_TIME}\n"
-        # content += f"📊 监控范围：外部合作、投融资、跨境电商、监管动态\n"
-        # content += f"⏱️ 时间窗口：过去{TIME_WINDOW_HOURS}小时"
-        # send_dingtalk_message(content)
+        today = datetime.now().strftime("%Y年%m月%d日")
+        content = f"📰 SHEIN每日热点资讯（{today}）\n\n"
+        content += f"过去{TIME_WINDOW_HOURS}小时内暂无SHEIN相关新闻更新。\n\n"
+        content += f"⏰ 每日推送时间：{PUSH_TIME}\n"
+        content += f"📊 监控范围：外部合作、投融资、跨境电商、监管动态\n"
+        content += f"⏱️ 时间窗口：过去{TIME_WINDOW_HOURS}小时"
+        result = send_dingtalk_message(content)
+        print(f"[{datetime.now()}] 发送结果: {result}")
         return
     
     # 格式化内容
