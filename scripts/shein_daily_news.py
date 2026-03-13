@@ -23,6 +23,7 @@ import re
 import http.client
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus, urlencode, quote
+from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
 
 # 修复 Business of Fashion 等返回过多 headers 的问题
@@ -34,7 +35,7 @@ ACCESS_TOKEN = os.environ.get("DINGTALK_ACCESS_TOKEN", "")
 SECRET = os.environ.get("DINGTALK_SECRET", "")
 
 # 推送时间显示
-PUSH_TIME = "上午9:00"
+PUSH_TIME = "上午10:00"
 
 # 新闻源配置 - RSS源（10+权威媒体，经过验证可用的源）
 RSS_SOURCES = {
@@ -213,6 +214,8 @@ NEWS_APIS = {
 MAX_NEWS_COUNT = 8
 # 时间窗口（小时）- 只获取过去24小时的新闻
 TIME_WINDOW_HOURS = 24
+# 相似度阈值 - 超过此值的新闻会被合并
+SIMILARITY_THRESHOLD = 0.8
 # =================================================
 
 DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send"
@@ -562,38 +565,95 @@ def fetch_all_news():
     
     # 按时间排序，最新的在前
     all_news.sort(key=lambda x: x["pub_time"], reverse=True)
-    
-    # 去重（基于标题相似度）
-    unique_news = []
+
+    total_before = len(all_news)
+
+    # 去重合并（基于标题+描述相似度）
+    merged_news = []
     for news in all_news:
-        is_duplicate = False
-        for existing in unique_news:
-            # 简单判断标题相似度
-            if similar(news["title"], existing["title"]) > 0.7:
-                is_duplicate = True
-                break
-        if not is_duplicate:
-            unique_news.append(news)
-    
-    return unique_news[:MAX_NEWS_COUNT]
+        # 初始化多源字段
+        news['sources'] = [news['source']]
+        news['all_links'] = [{'source': news['source'], 'link': news.get('link', '')}]
+
+        # 在已有组中寻找最佳匹配
+        best_idx = -1
+        best_score = 0.0
+        for idx, existing in enumerate(merged_news):
+            score = compute_similarity(news, existing)
+            if score > best_score:
+                best_score = score
+                best_idx = idx
+
+        if best_score >= SIMILARITY_THRESHOLD and best_idx >= 0:
+            merge_news_item(merged_news[best_idx], news)
+        else:
+            merged_news.append(news)
+
+    print(f"[{datetime.now()}] 去重合并：{total_before} → {len(merged_news)} 条")
+
+    return merged_news[:MAX_NEWS_COUNT]
 
 
-def similar(str1, str2):
-    """计算两个字符串的相似度（简单实现）"""
-    if not str1 or not str2:
+def compute_similarity(news_a, news_b):
+    """计算两条新闻的相似度，综合比较标题和描述"""
+    title_a = (news_a.get('title') or '').lower()
+    title_b = (news_b.get('title') or '').lower()
+
+    if not title_a or not title_b:
         return 0.0
-    
-    # 使用简单的集合交集方法
-    set1 = set(str1.lower())
-    set2 = set(str2.lower())
-    
-    intersection = set1.intersection(set2)
-    union = set1.union(set2)
-    
-    if not union:
-        return 0.0
-    
-    return len(intersection) / len(union)
+
+    title_sim = SequenceMatcher(None, title_a, title_b).ratio()
+
+    desc_a = (news_a.get('description') or '').lower()
+    desc_b = (news_b.get('description') or '').lower()
+
+    if desc_a and desc_b:
+        desc_sim = SequenceMatcher(None, desc_a, desc_b).ratio()
+        weighted = 0.6 * title_sim + 0.4 * desc_sim
+        return max(title_sim, weighted)
+
+    return title_sim
+
+
+def _content_score(news):
+    """计算新闻内容丰富度评分"""
+    return len(news.get('title') or '') + len(news.get('description') or '')
+
+
+def merge_news_item(group, new_item):
+    """将 new_item 合并进 group（就地修改 group）"""
+    # 如果新条目内容更丰富，替换标题/描述/主链接
+    if _content_score(new_item) > _content_score(group):
+        group['title'] = new_item['title']
+        group['link'] = new_item['link']
+
+    # 描述取更长的
+    new_desc = new_item.get('description') or ''
+    old_desc = group.get('description') or ''
+    if len(new_desc) > len(old_desc):
+        group['description'] = new_desc
+
+    # 时间取最新的
+    if new_item.get('pub_time') and new_item['pub_time'] > group.get('pub_time', datetime.min):
+        group['pub_time'] = new_item['pub_time']
+
+    # hours_ago 取最小值
+    group['hours_ago'] = min(group.get('hours_ago', 9999), new_item.get('hours_ago', 9999))
+
+    # 合并来源（去重）
+    new_source = new_item.get('source', '')
+    if new_source and new_source not in group['sources']:
+        group['sources'].append(new_source)
+        group['source'] = '\u3001'.join(group['sources'])
+
+    # 合并链接（按 link 去重）
+    new_link = new_item.get('link', '')
+    existing_links = {item['link'] for item in group['all_links']}
+    if new_link and new_link not in existing_links:
+        group['all_links'].append({
+            'source': new_source,
+            'link': new_link
+        })
 
 
 def format_news_content(news_list):
@@ -613,13 +673,27 @@ def format_news_content(news_list):
         
         text += f"### {i}. 【{category}】{news['title']}\n\n"
         
-        # 添加描述（如果有且不太短）
-        if news["description"] and len(news["description"]) > 20:
-            text += f"{news['description']}...\n\n"
+        # 添加描述（截取约50字）
+        desc = news.get("description", "")
+        if desc and len(desc) > 20:
+            display_desc = desc[:50] + "..." if len(desc) > 50 else desc
+            text += f"{display_desc}\n\n"
         
         link = news.get('link', '')
+        all_links = news.get('all_links', [])
+
         text += f"📰 来源：{news['source']} | ⏱️ {time_str}"
-        if link:
+        if all_links and len(all_links) > 1:
+            # 多来源：为每个来源生成独立链接，最多展示3个
+            link_parts = []
+            for item in all_links[:3]:
+                if item.get('link'):
+                    link_parts.append(f"[{item['source']}]({item['link']})")
+            if link_parts:
+                text += ' | ' + ' | '.join(link_parts)
+            if len(all_links) > 3:
+                text += f" 等{len(all_links)}家媒体报道"
+        elif link:
             text += f" | [查看原文]({link})"
         text += "\n\n---\n\n"
     
