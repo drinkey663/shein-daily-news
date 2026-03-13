@@ -20,9 +20,14 @@ import hmac
 import hashlib
 import base64
 import re
+import http.client
 from datetime import datetime, timedelta
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode, quote
+from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
+
+# 修复 Business of Fashion 等返回过多 headers 的问题
+http.client._MAXHEADERS = 200
 
 # ==================== 配置区域 ====================
 # 钉钉机器人配置（从环境变量读取，也支持直接设置）
@@ -30,7 +35,7 @@ ACCESS_TOKEN = os.environ.get("DINGTALK_ACCESS_TOKEN", "")
 SECRET = os.environ.get("DINGTALK_SECRET", "")
 
 # 推送时间显示
-PUSH_TIME = "上午9:00"
+PUSH_TIME = "上午10:00"
 
 # 新闻源配置 - RSS源（10+权威媒体，经过验证可用的源）
 RSS_SOURCES = {
@@ -59,21 +64,11 @@ RSS_SOURCES = {
         "rss_url": "https://a.jiemian.com/index.php?m=article&a=rss",
         "keywords": ["SHEIN", "希音", "shein"]
     },
-    "21cbh": {
-        "name": "21世纪经济报道",
-        "rss_url": "https://www.21jingji.com/rss.php",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
     
     # 其他可用源
     "huxiu": {
         "name": "虎嗅",
         "rss_url": "https://www.huxiu.com/rss/0.xml",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "cls": {
-        "name": "财联社",
-        "rss_url": "https://www.cls.cn/rss/",
         "keywords": ["SHEIN", "希音", "shein"]
     },
     "geekpark": {
@@ -89,6 +84,101 @@ RSS_SOURCES = {
     "tmtpost": {
         "name": "钛媒体",
         "rss_url": "https://www.tmtpost.com/rss.xml",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # 国际电商平台博客
+    "shopify_blog": {
+        "name": "Shopify Blog",
+        "rss_url": "https://www.shopify.com/blog.atom",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "shopify_editions": {
+        "name": "Shopify Editions",
+        "rss_url": "https://www.shopify.com/editions/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "woocommerce": {
+        "name": "WooCommerce Blog",
+        "rss_url": "https://woocommerce.com/blog/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # 电商行业英文媒体
+    "practical_ecommerce": {
+        "name": "Practical Ecommerce",
+        "rss_url": "https://www.practicalecommerce.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "sej_ecommerce": {
+        "name": "Search Engine Journal",
+        "rss_url": "https://www.searchenginejournal.com/category/ecommerce/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "search_engine_land": {
+        "name": "Search Engine Land",
+        "rss_url": "https://searchengineland.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "martech": {
+        "name": "MarTech",
+        "rss_url": "https://martech.org/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "retail_dive": {
+        "name": "Retail Dive",
+        "rss_url": "https://www.retaildive.com/feeds/news/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "digital_commerce_360": {
+        "name": "Digital Commerce 360",
+        "rss_url": "https://www.digitalcommerce360.com/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "modern_retail": {
+        "name": "Modern Retail",
+        "rss_url": "https://www.modernretail.co/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # 跨境电商中文媒体
+    "ennews": {
+        "name": "亿恩网",
+        "rss_url": "https://www.ennews.com/rss",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # SHEIN官方 & 时尚零售
+    "retail_touchpoints": {
+        "name": "Retail TouchPoints",
+        "rss_url": "https://www.retailtouchpoints.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "pymnts_ecommerce": {
+        "name": "PYMNTS ECommerce",
+        "rss_url": "https://www.pymnts.com/category/news/ecommerce/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "bof": {
+        "name": "Business of Fashion",
+        "rss_url": "https://www.businessoffashion.com/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "glossy": {
+        "name": "Glossy",
+        "rss_url": "https://www.glossy.co/feed/",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+
+    # Google News 聚合
+    "google_news_shein": {
+        "name": "Google新闻(SHEIN)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN",
+        "keywords": ["SHEIN", "希音", "shein"]
+    },
+    "google_news_shein_temu": {
+        "name": "Google新闻(SHEIN+Temu)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+Temu",
         "keywords": ["SHEIN", "希音", "shein"]
     }
 }
@@ -124,6 +214,8 @@ NEWS_APIS = {
 MAX_NEWS_COUNT = 8
 # 时间窗口（小时）- 只获取过去24小时的新闻
 TIME_WINDOW_HOURS = 24
+# 相似度阈值 - 超过此值的新闻会被合并
+SIMILARITY_THRESHOLD = 0.8
 # =================================================
 
 DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send"
@@ -139,8 +231,8 @@ def generate_sign(timestamp, secret):
     return sign
 
 
-def send_dingtalk_message(content):
-    """发送钉钉消息"""
+def send_dingtalk_message(title, markdown_text):
+    """发送钉钉 Markdown 消息"""
     timestamp = str(round(time.time() * 1000))
     sign = generate_sign(timestamp, SECRET)
 
@@ -152,9 +244,10 @@ def send_dingtalk_message(content):
         "Content-Type": "application/json; charset=utf-8"
     }
     data = {
-        "msgtype": "text",
-        "text": {
-            "content": content
+        "msgtype": "markdown",
+        "markdown": {
+            "title": title,
+            "text": markdown_text
         }
     }
 
@@ -170,18 +263,71 @@ def fetch_rss_news(source_name, source_config):
     news_list = []
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8",
+            "Referer": "https://www.google.com/",
+            "Cache-Control": "max-age=0",
         }
-        response = requests.get(source_config["rss_url"], headers=headers, timeout=15)
-        response.encoding = 'utf-8'
-        
-        # 解析RSS
+
+        # 请求带重试（应对不稳定连接）
+        response = None
+        for attempt in range(2):
+            try:
+                response = requests.get(source_config["rss_url"], headers=headers, timeout=15)
+                break
+            except (requests.ConnectionError, requests.Timeout) as e:
+                if attempt == 0:
+                    time.sleep(2)
+                else:
+                    raise
+
+        if response is None:
+            return news_list
+
+        raw_bytes = response.content
+
+        # GBK/GB2312 编码预处理
+        enc_match = re.search(rb'encoding=["\']([^"\']+)["\']', raw_bytes[:200])
+        if enc_match:
+            declared_enc = enc_match.group(1).decode('ascii').lower()
+            if declared_enc in ('gbk', 'gb2312', 'gb18030'):
+                text_content = raw_bytes.decode(declared_enc, errors='replace')
+                text_content = re.sub(r'encoding=["\'][^"\']+["\']', 'encoding="utf-8"', text_content)
+                raw_bytes = text_content.encode('utf-8')
+
+        # 解析RSS（三层 fallback）
+        root = None
+        # 第一层：直接解析
         try:
-            root = ET.fromstring(response.content)
+            root = ET.fromstring(raw_bytes)
         except ET.ParseError:
-            # 尝试清理内容后再解析
-            content = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', response.text)
-            root = ET.fromstring(content.encode('utf-8'))
+            pass
+
+        # 第二层：清理控制字符后重试
+        if root is None:
+            try:
+                cleaned = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f]', '', raw_bytes.decode('utf-8', errors='replace'))
+                root = ET.fromstring(cleaned.encode('utf-8'))
+            except ET.ParseError:
+                pass
+
+        # 第三层：截断到根闭合标签（修复 Shopify Atom "junk after document element"）
+        if root is None:
+            text_for_truncate = raw_bytes.decode('utf-8', errors='replace')
+            for closing_tag in ['</feed>', '</rss>']:
+                idx = text_for_truncate.rfind(closing_tag)
+                if idx != -1:
+                    try:
+                        truncated = text_for_truncate[:idx + len(closing_tag)]
+                        root = ET.fromstring(truncated.encode('utf-8'))
+                        break
+                    except ET.ParseError:
+                        continue
+
+        if root is None:
+            print(f"[{datetime.now()}] 获取{source_name}新闻失败: XML解析全部失败")
+            return news_list
         
         # 处理不同RSS格式
         items = root.findall('.//item')
@@ -235,13 +381,19 @@ def fetch_rss_news(source_name, source_config):
             if pub_datetime is None:
                 continue
                 
-            # 检查是否在48小时内
+            # 检查是否在时间窗口内
             time_diff = datetime.now() - pub_datetime
             if time_diff > timedelta(hours=TIME_WINDOW_HOURS):
                 continue
             
             # 清理描述中的HTML标签
             clean_desc = re.sub(r'<[^>]+>', '', description) if description else ""
+
+            # 翻译英文内容
+            if is_english_text(title):
+                title = translate_to_chinese(title)
+                if clean_desc:
+                    clean_desc = translate_to_chinese(clean_desc[:200])
             
             news_list.append({
                 "title": title.strip(),
@@ -303,7 +455,10 @@ def fetch_newsapi_news():
 
 
 def parse_pub_date(pub_date_str):
-    """解析发布时间"""
+    """解析发布时间，统一返回 naive datetime"""
+    def _strip_tz(dt):
+        return dt.replace(tzinfo=None) if dt.tzinfo else dt
+
     if not pub_date_str:
         return datetime.now()
     
@@ -320,7 +475,7 @@ def parse_pub_date(pub_date_str):
     
     for fmt in date_formats:
         try:
-            return datetime.strptime(pub_date_str.strip(), fmt)
+            return _strip_tz(datetime.strptime(pub_date_str.strip(), fmt))
         except:
             continue
     
@@ -329,12 +484,43 @@ def parse_pub_date(pub_date_str):
         # 匹配 YYYY-MM-DD 格式
         match = re.search(r'(\d{4}-\d{2}-\d{2})', pub_date_str)
         if match:
-            return datetime.strptime(match.group(1), "%Y-%m-%d")
+            return _strip_tz(datetime.strptime(match.group(1), "%Y-%m-%d"))
     except:
         pass
     
     # 如果都失败了，返回当前时间（假设是最新的）
     return datetime.now()
+
+
+def is_english_text(text):
+    """检测文本是否为英文（非CJK字符占多数）"""
+    if not text:
+        return False
+    cjk_count = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    return cjk_count / max(len(text), 1) < 0.1
+
+
+def translate_to_chinese(text):
+    """使用 Google Translate 免费 API 将文本翻译为中文"""
+    if not text or not is_english_text(text):
+        return text
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "auto",
+            "tl": "zh-CN",
+            "dt": "t",
+            "q": text[:500],
+        }
+        resp = requests.get(url, params=params, timeout=5)
+        if resp.status_code == 200:
+            result = resp.json()
+            translated = ''.join(part[0] for part in result[0] if part[0])
+            return translated
+    except Exception as e:
+        print(f"[{datetime.now()}] 翻译失败: {e}")
+    return text
 
 
 def categorize_news(title, description):
@@ -379,69 +565,141 @@ def fetch_all_news():
     
     # 按时间排序，最新的在前
     all_news.sort(key=lambda x: x["pub_time"], reverse=True)
-    
-    # 去重（基于标题相似度）
-    unique_news = []
+
+    total_before = len(all_news)
+
+    # 去重合并（基于标题+描述相似度）
+    merged_news = []
     for news in all_news:
-        is_duplicate = False
-        for existing in unique_news:
-            # 简单判断标题相似度
-            if similar(news["title"], existing["title"]) > 0.7:
-                is_duplicate = True
-                break
-        if not is_duplicate:
-            unique_news.append(news)
-    
-    return unique_news[:MAX_NEWS_COUNT]
+        # 初始化多源字段
+        news['sources'] = [news['source']]
+        news['all_links'] = [{'source': news['source'], 'link': news.get('link', '')}]
+
+        # 在已有组中寻找最佳匹配
+        best_idx = -1
+        best_score = 0.0
+        for idx, existing in enumerate(merged_news):
+            score = compute_similarity(news, existing)
+            if score > best_score:
+                best_score = score
+                best_idx = idx
+
+        if best_score >= SIMILARITY_THRESHOLD and best_idx >= 0:
+            merge_news_item(merged_news[best_idx], news)
+        else:
+            merged_news.append(news)
+
+    print(f"[{datetime.now()}] 去重合并：{total_before} → {len(merged_news)} 条")
+
+    return merged_news[:MAX_NEWS_COUNT]
 
 
-def similar(str1, str2):
-    """计算两个字符串的相似度（简单实现）"""
-    if not str1 or not str2:
+def compute_similarity(news_a, news_b):
+    """计算两条新闻的相似度，综合比较标题和描述"""
+    title_a = (news_a.get('title') or '').lower()
+    title_b = (news_b.get('title') or '').lower()
+
+    if not title_a or not title_b:
         return 0.0
-    
-    # 使用简单的集合交集方法
-    set1 = set(str1.lower())
-    set2 = set(str2.lower())
-    
-    intersection = set1.intersection(set2)
-    union = set1.union(set2)
-    
-    if not union:
-        return 0.0
-    
-    return len(intersection) / len(union)
+
+    title_sim = SequenceMatcher(None, title_a, title_b).ratio()
+
+    desc_a = (news_a.get('description') or '').lower()
+    desc_b = (news_b.get('description') or '').lower()
+
+    if desc_a and desc_b:
+        desc_sim = SequenceMatcher(None, desc_a, desc_b).ratio()
+        weighted = 0.6 * title_sim + 0.4 * desc_sim
+        return max(title_sim, weighted)
+
+    return title_sim
+
+
+def _content_score(news):
+    """计算新闻内容丰富度评分"""
+    return len(news.get('title') or '') + len(news.get('description') or '')
+
+
+def merge_news_item(group, new_item):
+    """将 new_item 合并进 group（就地修改 group）"""
+    # 如果新条目内容更丰富，替换标题/描述/主链接
+    if _content_score(new_item) > _content_score(group):
+        group['title'] = new_item['title']
+        group['link'] = new_item['link']
+
+    # 描述取更长的
+    new_desc = new_item.get('description') or ''
+    old_desc = group.get('description') or ''
+    if len(new_desc) > len(old_desc):
+        group['description'] = new_desc
+
+    # 时间取最新的
+    if new_item.get('pub_time') and new_item['pub_time'] > group.get('pub_time', datetime.min):
+        group['pub_time'] = new_item['pub_time']
+
+    # hours_ago 取最小值
+    group['hours_ago'] = min(group.get('hours_ago', 9999), new_item.get('hours_ago', 9999))
+
+    # 合并来源（去重）
+    new_source = new_item.get('source', '')
+    if new_source and new_source not in group['sources']:
+        group['sources'].append(new_source)
+        group['source'] = '\u3001'.join(group['sources'])
+
+    # 合并链接（按 link 去重）
+    new_link = new_item.get('link', '')
+    existing_links = {item['link'] for item in group['all_links']}
+    if new_link and new_link not in existing_links:
+        group['all_links'].append({
+            'source': new_source,
+            'link': new_link
+        })
 
 
 def format_news_content(news_list):
-    """格式化新闻内容"""
+    """格式化新闻内容为钉钉 Markdown 格式，返回 (title, text) 元组"""
     if not news_list:
         return None
     
     today = datetime.now().strftime("%Y年%m月%d日")
+    title = "SHEIN每日热点资讯"
     
-    content = f"📰 SHEIN每日热点资讯（{today}）\n\n"
+    text = f"# 📰 SHEIN每日热点资讯（{today}）\n\n---\n\n"
     
     for i, news in enumerate(news_list, 1):
         category = categorize_news(news["title"], news["description"])
         hours_ago = news.get("hours_ago", 0)
         time_str = f"{hours_ago}小时前" if hours_ago < 24 else f"{hours_ago // 24}天前"
         
-        content += f"{i}️⃣ 【{category}】{news['title']}\n"
+        text += f"### {i}. 【{category}】{news['title']}\n\n"
         
-        # 添加描述（如果有且不太短）
-        if news["description"] and len(news["description"]) > 20:
-            content += f"{news['description']}...\n"
+        # 添加描述（截取约50字）
+        desc = news.get("description", "")
+        if desc and len(desc) > 20:
+            display_desc = desc[:50] + "..." if len(desc) > 50 else desc
+            text += f"{display_desc}\n\n"
         
-        content += f"原文链接：{news['link']}\n"
-        content += f"📰 来源：{news['source']} | ⏱️ {time_str}\n\n"
+        link = news.get('link', '')
+        all_links = news.get('all_links', [])
+
+        text += f"📰 来源：{news['source']} | ⏱️ {time_str}"
+        if all_links and len(all_links) > 1:
+            # 多来源：为每个来源生成独立链接，最多展示3个
+            link_parts = []
+            for item in all_links[:3]:
+                if item.get('link'):
+                    link_parts.append(f"[{item['source']}]({item['link']})")
+            if link_parts:
+                text += ' | ' + ' | '.join(link_parts)
+            if len(all_links) > 3:
+                text += f" 等{len(all_links)}家媒体报道"
+        elif link:
+            text += f" | [查看原文]({link})"
+        text += "\n\n---\n\n"
     
-    content += f"⏰ 每日推送时间：{PUSH_TIME}\n"
-    content += f"📊 监控范围：外部合作、投融资、跨境电商、监管动态\n"
-    content += f"📰 信息来源：新浪财经、36氪等权威媒体\n"
-    content += f"⏱️ 时间窗口：过去{TIME_WINDOW_HOURS}小时"
+    text += f"> ⏰ 每日推送时间：{PUSH_TIME} | 📊 监控范围：外部合作、投融资、跨境电商、监管动态 | ⏱️ 过去{TIME_WINDOW_HOURS}小时"
     
-    return content
+    return (title, text)
 
 
 def main():
@@ -460,24 +718,23 @@ def main():
     
     if not news_list:
         print(f"[{datetime.now()}] 过去{TIME_WINDOW_HOURS}小时内未找到SHEIN相关新闻")
-        # 可选：发送提示消息（默认关闭，避免打扰）
-        # 如需开启，取消下面注释
-        # today = datetime.now().strftime("%Y年%m月%d日")
-        # content = f"📰 SHEIN每日热点资讯（{today}）\n\n"
-        # content += f"过去{TIME_WINDOW_HOURS}小时内暂无SHEIN相关新闻更新。\n\n"
-        # content += f"⏰ 每日推送时间：{PUSH_TIME}\n"
-        # content += f"📊 监控范围：外部合作、投融资、跨境电商、监管动态\n"
-        # content += f"⏱️ 时间窗口：过去{TIME_WINDOW_HOURS}小时"
-        # send_dingtalk_message(content)
+        today = datetime.now().strftime("%Y年%m月%d日")
+        title = "SHEIN每日热点资讯"
+        text = f"# 📰 SHEIN每日热点资讯（{today}）\n\n"
+        text += f"过去{TIME_WINDOW_HOURS}小时内暂无SHEIN相关新闻更新。\n\n"
+        text += f"> ⏰ 每日推送时间：{PUSH_TIME} | 📊 监控范围：外部合作、投融资、跨境电商、监管动态 | ⏱️ 过去{TIME_WINDOW_HOURS}小时"
+        result = send_dingtalk_message(title, text)
+        print(f"[{datetime.now()}] 发送结果: {result}")
         return
     
     # 格式化内容
-    content = format_news_content(news_list)
+    result = format_news_content(news_list)
     
-    if content:
+    if result:
+        title, text = result
         # 发送钉钉消息
-        result = send_dingtalk_message(content)
-        print(f"[{datetime.now()}] 发送结果: {result}")
+        send_result = send_dingtalk_message(title, text)
+        print(f"[{datetime.now()}] 发送结果: {send_result}")
 
 
 if __name__ == "__main__":
