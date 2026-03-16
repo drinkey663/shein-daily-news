@@ -38,148 +38,184 @@ SECRET = os.environ.get("DINGTALK_SECRET", "")
 PUSH_TIME = "上午10:00"
 
 # 新闻源配置 - RSS源（10+权威媒体，经过验证可用的源）
+# region: "cn" 国内源（优先抓取），"intl" 海外源
 RSS_SOURCES = {
-    # 综合财经媒体（已验证可用）
+    # ==================== 国内源 ====================
+    # 综合财经媒体
     "sina_finance": {
         "name": "新浪财经",
         "rss_url": "https://rss.sina.com.cn/roll/finance/hot_roll.xml",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
     "sina_tech": {
         "name": "新浪科技",
         "rss_url": "https://rss.sina.com.cn/tech/rollnews.xml",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
-    
-    # 科技创业媒体（已验证可用）
+
+    # 科技创业媒体
     "36kr": {
         "name": "36氪",
         "rss_url": "https://36kr.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
-    
-    # 财经商业媒体（已验证可用）
+
+    # 财经商业媒体
     "jiebian": {
         "name": "界面新闻",
         "rss_url": "https://a.jiemian.com/index.php?m=article&a=rss",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
-    
-    # 其他可用源
+
+    # 其他国内源
     "huxiu": {
         "name": "虎嗅",
         "rss_url": "https://www.huxiu.com/rss/0.xml",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
     "geekpark": {
         "name": "极客公园",
         "rss_url": "https://www.geekpark.net/rss",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
     "cyzone": {
         "name": "创业邦",
         "rss_url": "https://www.cyzone.cn/rss/",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
     "tmtpost": {
         "name": "钛媒体",
         "rss_url": "https://www.tmtpost.com/rss.xml",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-
-    # 国际电商平台博客
-    "shopify_blog": {
-        "name": "Shopify Blog",
-        "rss_url": "https://www.shopify.com/blog.atom",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "shopify_editions": {
-        "name": "Shopify Editions",
-        "rss_url": "https://www.shopify.com/editions/feed",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "woocommerce": {
-        "name": "WooCommerce Blog",
-        "rss_url": "https://woocommerce.com/blog/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-
-    # 电商行业英文媒体
-    "practical_ecommerce": {
-        "name": "Practical Ecommerce",
-        "rss_url": "https://www.practicalecommerce.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "sej_ecommerce": {
-        "name": "Search Engine Journal",
-        "rss_url": "https://www.searchenginejournal.com/category/ecommerce/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "search_engine_land": {
-        "name": "Search Engine Land",
-        "rss_url": "https://searchengineland.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "martech": {
-        "name": "MarTech",
-        "rss_url": "https://martech.org/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "retail_dive": {
-        "name": "Retail Dive",
-        "rss_url": "https://www.retaildive.com/feeds/news/",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "digital_commerce_360": {
-        "name": "Digital Commerce 360",
-        "rss_url": "https://www.digitalcommerce360.com/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
-    },
-    "modern_retail": {
-        "name": "Modern Retail",
-        "rss_url": "https://www.modernretail.co/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
 
     # 跨境电商中文媒体
     "ennews": {
         "name": "亿恩网",
         "rss_url": "https://www.ennews.com/rss",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
     },
 
-    # SHEIN官方 & 时尚零售
+    # Google News 中文聚合（替代百度资讯，搜索"中国企业出海"相关）
+    "google_news_chuhai": {
+        "name": "Google新闻(中国企业出海)",
+        "rss_url": "https://news.google.com/rss/search?q=%E4%B8%AD%E5%9B%BD%E4%BC%81%E4%B8%9A%E5%87%BA%E6%B5%B7+SHEIN&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
+    },
+
+    # ==================== 海外源 ====================
+    # 国际电商平台博客
+    "shopify_blog": {
+        "name": "Shopify Blog",
+        "rss_url": "https://www.shopify.com/blog.atom",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "shopify_editions": {
+        "name": "Shopify Editions",
+        "rss_url": "https://www.shopify.com/editions/feed",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "woocommerce": {
+        "name": "WooCommerce Blog",
+        "rss_url": "https://woocommerce.com/blog/feed/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+
+    # 电商行业英文媒体
+    "practical_ecommerce": {
+        "name": "Practical Ecommerce",
+        "rss_url": "https://www.practicalecommerce.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "sej_ecommerce": {
+        "name": "Search Engine Journal",
+        "rss_url": "https://www.searchenginejournal.com/category/ecommerce/feed/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "search_engine_land": {
+        "name": "Search Engine Land",
+        "rss_url": "https://searchengineland.com/feed",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "martech": {
+        "name": "MarTech",
+        "rss_url": "https://martech.org/feed/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "retail_dive": {
+        "name": "Retail Dive",
+        "rss_url": "https://www.retaildive.com/feeds/news/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "digital_commerce_360": {
+        "name": "Digital Commerce 360",
+        "rss_url": "https://www.digitalcommerce360.com/feed/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "modern_retail": {
+        "name": "Modern Retail",
+        "rss_url": "https://www.modernretail.co/feed/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+
+    # 时尚零售英文媒体
     "retail_touchpoints": {
         "name": "Retail TouchPoints",
         "rss_url": "https://www.retailtouchpoints.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     },
     "pymnts_ecommerce": {
         "name": "PYMNTS ECommerce",
         "rss_url": "https://www.pymnts.com/category/news/ecommerce/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     },
     "bof": {
         "name": "Business of Fashion",
         "rss_url": "https://www.businessoffashion.com/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     },
     "glossy": {
         "name": "Glossy",
         "rss_url": "https://www.glossy.co/feed/",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     },
 
     # Google News 聚合
     "google_news_shein": {
         "name": "Google新闻(SHEIN)",
         "rss_url": "https://news.google.com/rss/search?q=SHEIN",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     },
     "google_news_shein_temu": {
         "name": "Google新闻(SHEIN+Temu)",
         "rss_url": "https://news.google.com/rss/search?q=SHEIN+Temu",
-        "keywords": ["SHEIN", "希音", "shein"]
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     }
 }
 
@@ -199,8 +235,8 @@ NEWS_APIS = {
     },
     "gnews": {
         "name": "GNews",
-        "enabled": False,  # 默认关闭，需要配置API Key
-        "api_key": "",  # 请填写你的API Key
+        "enabled": True,
+        "api_key": "86267ec8967fbe9eade57aba05d14224",
         "endpoint": "https://gnews.io/api/v4/search",
         "params": {
             "q": "SHEIN",
@@ -208,6 +244,16 @@ NEWS_APIS = {
             "max": 10
         }
     }
+}
+
+# HTML 页面抓取源（非RSS，需要专用解析器）
+HTML_SOURCES = {
+    "baijing_newsflash": {
+        "name": "白鲸出海7×24h",
+        "url": "https://www.baijing.cn/newsflashes_txzq/",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
+    },
 }
 
 # 最大新闻条数
@@ -454,6 +500,141 @@ def fetch_newsapi_news():
     return news_list
 
 
+def fetch_gnews_news():
+    """从GNews获取新闻"""
+    news_list = []
+    api_config = NEWS_APIS.get("gnews")
+
+    if not api_config or not api_config.get("enabled") or not api_config.get("api_key"):
+        return news_list
+
+    try:
+        from_date = (datetime.now() - timedelta(hours=TIME_WINDOW_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        params = api_config["params"].copy()
+        params["token"] = api_config["api_key"]
+        params["from"] = from_date
+
+        response = requests.get(api_config["endpoint"], params=params, timeout=15)
+        data = response.json()
+
+        for article in data.get("articles", [])[:MAX_NEWS_COUNT]:
+            pub_datetime = parse_pub_date(article.get("publishedAt", ""))
+            if pub_datetime is None:
+                continue
+
+            time_diff = datetime.now() - pub_datetime
+            if time_diff > timedelta(hours=TIME_WINDOW_HOURS):
+                continue
+
+            title = article.get("title", "").strip()
+            description = article.get("description", "")
+            if description:
+                description = description[:200]
+
+            # 翻译英文内容
+            if is_english_text(title):
+                title = translate_to_chinese(title)
+                if description:
+                    description = translate_to_chinese(description[:200])
+
+            news_list.append({
+                "title": title,
+                "link": article.get("url", "").strip(),
+                "source": article.get("source", {}).get("name", "GNews"),
+                "pub_time": pub_datetime,
+                "description": description or "",
+                "hours_ago": int(time_diff.total_seconds() / 3600)
+            })
+
+    except Exception as e:
+        print(f"[{datetime.now()}] 获取GNews新闻失败: {e}")
+
+    return news_list
+
+
+def fetch_baijing_news(source_config):
+    """从白鲸出海7×24h快讯页面抓取新闻（HTML解析）"""
+    news_list = []
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+        }
+        response = requests.get(source_config["url"], headers=headers, timeout=15)
+        html = response.text
+
+        # 每条快讯是一个 <li class="get_time"> ... </li>
+        items = re.findall(
+            r'<li\s+class="get_time"[^>]*>(.*?)</li>\s*(?:<!--\s*单快讯\s*-->|$)',
+            html, re.DOTALL
+        )
+
+        for item_html in items[:15]:
+            # 提取时间：<span ...> 2026-03-16 11:43 </span>
+            time_match = re.search(
+                r'<span[^>]*>\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s*</span>',
+                item_html
+            )
+            # 提取标题和链接：<h3 ...><a href="/newsflashes_txzq/17659">标题</a></h3>
+            title_match = re.search(
+                r'<h3[^>]*>\s*<a\s+href="(/newsflashes_txzq/\d+)"[^>]*>\s*(.*?)\s*</a>',
+                item_html, re.DOTALL
+            )
+            # 提取描述：<div class="newsflashesText">描述内容</div>
+            desc_match = re.search(
+                r'<div\s+class="newsflashesText">\s*(.*?)\s*</div>',
+                item_html, re.DOTALL
+            )
+            # 提取来源
+            source_match = re.search(r'来源：(.*?)\s*<', item_html)
+
+            if not title_match:
+                continue
+
+            title = re.sub(r'<[^>]+>', '', title_match.group(2)).strip()
+            link = "https://www.baijing.cn" + title_match.group(1)
+
+            pub_datetime = None
+            if time_match:
+                pub_datetime = parse_pub_date(time_match.group(1))
+            if pub_datetime is None:
+                pub_datetime = datetime.now()
+
+            time_diff = datetime.now() - pub_datetime
+            if time_diff > timedelta(hours=TIME_WINDOW_HOURS):
+                continue
+
+            description = ""
+            if desc_match:
+                description = re.sub(r'<[^>]+>', '', desc_match.group(1)).strip()[:200]
+
+            # 检查是否包含关键词
+            content_to_check = (title + " " + description).lower()
+            if not any(kw.lower() in content_to_check for kw in source_config["keywords"]):
+                continue
+
+            original_source = source_config["name"]
+            if source_match:
+                original_source = source_match.group(1).strip()
+                original_source = re.sub(r'<[^>]+>', '', original_source)
+
+            news_list.append({
+                "title": title,
+                "link": link,
+                "source": original_source,
+                "pub_time": pub_datetime,
+                "description": description,
+                "hours_ago": int(time_diff.total_seconds() / 3600)
+            })
+
+    except Exception as e:
+        print(f"[{datetime.now()}] 获取白鲸出海快讯失败: {e}")
+
+    return news_list
+
+
 def parse_pub_date(pub_date_str):
     """解析发布时间，统一返回 naive datetime"""
     def _strip_tz(dt):
@@ -467,6 +648,7 @@ def parse_pub_date(pub_date_str):
         "%a, %d %b %Y %H:%M:%S %z",
         "%a, %d %b %Y %H:%M:%S GMT",
         "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%dT%H:%M:%S%z",
         "%Y-%m-%dT%H:%M:%SZ",
@@ -500,23 +682,38 @@ def is_english_text(text):
     return cjk_count / max(len(text), 1) < 0.1
 
 
+# 翻译时需要保留原文的品牌名（不区分大小写替换，翻译后统一还原为标准写法）
+PRESERVE_BRANDS = ["SHEIN", "Temu"]
+
+
 def translate_to_chinese(text):
-    """使用 Google Translate 免费 API 将文本翻译为中文"""
+    """使用 Google Translate 免费 API 将文本翻译为中文，保留品牌名不翻译"""
     if not text or not is_english_text(text):
         return text
     try:
+        # 用占位符替换品牌名，防止被翻译
+        placeholders = {}
+        modified = text
+        for i, brand in enumerate(PRESERVE_BRANDS):
+            ph = f"__BRAND{i}__"
+            placeholders[ph] = brand
+            modified = re.sub(re.escape(brand), ph, modified, flags=re.IGNORECASE)
+
         url = "https://translate.googleapis.com/translate_a/single"
         params = {
             "client": "gtx",
             "sl": "auto",
             "tl": "zh-CN",
             "dt": "t",
-            "q": text[:500],
+            "q": modified[:500],
         }
         resp = requests.get(url, params=params, timeout=5)
         if resp.status_code == 200:
             result = resp.json()
             translated = ''.join(part[0] for part in result[0] if part[0])
+            # 还原品牌名
+            for ph, brand in placeholders.items():
+                translated = translated.replace(ph, brand)
             return translated
     except Exception as e:
         print(f"[{datetime.now()}] 翻译失败: {e}")
@@ -546,14 +743,34 @@ def fetch_all_news():
     """从所有新闻源获取新闻"""
     all_news = []
     
-    # 从RSS源获取
-    for source_name, source_config in RSS_SOURCES.items():
+    # 从RSS源获取（国内源优先，海外源其次）
+    sorted_sources = sorted(
+        RSS_SOURCES.items(),
+        key=lambda x: 0 if x[1].get("region") == "cn" else 1
+    )
+    for source_name, source_config in sorted_sources:
         print(f"[{datetime.now()}] 正在获取 {source_config['name']} 的新闻...")
         news = fetch_rss_news(source_name, source_config)
         all_news.extend(news)
         if news:
             print(f"[{datetime.now()}] 从 {source_config['name']} 获取到 {len(news)} 条新闻")
         time.sleep(1)  # 避免请求过快
+
+    # 从HTML页面源获取（国内源优先）
+    sorted_html = sorted(
+        HTML_SOURCES.items(),
+        key=lambda x: 0 if x[1].get("region") == "cn" else 1
+    )
+    for source_name, source_config in sorted_html:
+        print(f"[{datetime.now()}] 正在获取 {source_config['name']} 的新闻...")
+        if source_name == "baijing_newsflash":
+            news = fetch_baijing_news(source_config)
+        else:
+            continue
+        all_news.extend(news)
+        if news:
+            print(f"[{datetime.now()}] 从 {source_config['name']} 获取到 {len(news)} 条新闻")
+        time.sleep(1)
     
     # 从NewsAPI获取（如果已启用）
     if NEWS_APIS.get("newsapi", {}).get("enabled"):
@@ -562,6 +779,14 @@ def fetch_all_news():
         all_news.extend(news)
         if news:
             print(f"[{datetime.now()}] 从 NewsAPI 获取到 {len(news)} 条新闻")
+
+    # 从GNews获取（如果已启用）
+    if NEWS_APIS.get("gnews", {}).get("enabled"):
+        print(f"[{datetime.now()}] 正在获取 GNews 的新闻...")
+        news = fetch_gnews_news()
+        all_news.extend(news)
+        if news:
+            print(f"[{datetime.now()}] 从 GNews 获取到 {len(news)} 条新闻")
     
     # 按时间排序，最新的在前
     all_news.sort(key=lambda x: x["pub_time"], reverse=True)
