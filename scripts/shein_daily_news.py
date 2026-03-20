@@ -260,8 +260,8 @@ HTML_SOURCES = {
 MAX_NEWS_COUNT = 8
 # 时间窗口（小时）- 只获取过去24小时的新闻
 TIME_WINDOW_HOURS = 24
-# 相似度阈值 - 超过此值的新闻会被合并
-SIMILARITY_THRESHOLD = 0.8
+# 相似度阈值 - 超过此值的新闻会被合并（综合字符+实体相似度）
+SIMILARITY_THRESHOLD = 0.5
 # =================================================
 
 DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send"
@@ -820,24 +820,85 @@ def fetch_all_news():
 
 
 def compute_similarity(news_a, news_b):
-    """计算两条新闻的相似度，综合比较标题和描述"""
-    title_a = (news_a.get('title') or '').lower()
-    title_b = (news_b.get('title') or '').lower()
+    """计算两条新闻的相似度，综合字符相似度和实体重叠度"""
+    title_a = normalize_title(news_a.get('title') or '')
+    title_b = normalize_title(news_b.get('title') or '')
 
     if not title_a or not title_b:
         return 0.0
 
-    title_sim = SequenceMatcher(None, title_a, title_b).ratio()
+    # 1) 字符级相似度
+    char_sim = SequenceMatcher(None, title_a, title_b).ratio()
 
+    # 2) 实体重叠度
+    ent_a = extract_entities(news_a.get('title') or '')
+    ent_b = extract_entities(news_b.get('title') or '')
+    if ent_a and ent_b:
+        ent_overlap = len(ent_a & ent_b) / min(len(ent_a), len(ent_b))
+    else:
+        ent_overlap = 0.0
+
+    # 3) 描述辅助（如果有）
     desc_a = (news_a.get('description') or '').lower()
     desc_b = (news_b.get('description') or '').lower()
-
+    desc_bonus = 0.0
     if desc_a and desc_b:
-        desc_sim = SequenceMatcher(None, desc_a, desc_b).ratio()
-        weighted = 0.6 * title_sim + 0.4 * desc_sim
-        return max(title_sim, weighted)
+        desc_sim = SequenceMatcher(None, desc_a[:200], desc_b[:200]).ratio()
+        desc_bonus = 0.1 * desc_sim
 
-    return title_sim
+    # 综合得分：实体权重更高（同一事件不同媒体措辞差异大，但实体一致）
+    combined = 0.35 * char_sim + 0.65 * ent_overlap + desc_bonus
+
+    return min(combined, 1.0)
+
+
+# 地名同义词映射（城市 -> 国家）
+_PLACE_ALIASES = {
+    '巴黎': '法国', '里昂': '法国', '马赛': '法国',
+    '柏林': '德国', '慕尼黑': '德国',
+    '伦敦': '英国', '曼彻斯特': '英国',
+    '北京': '中国', '上海': '中国', '深圳': '中国', '广州': '中国',
+    '东京': '日本', '首尔': '韩国', '河内': '越南',
+    '纽约': '美国', '华盛顿': '美国', '旧金山': '美国',
+    '新德里': '印度', '孟买': '印度',
+}
+
+
+def normalize_title(text):
+    """标题归一化：去掉来源后缀，统一空格"""
+    text = re.sub(r'\s*[-–—]\s*[A-Za-z][\w\s.]*$', '', text)
+    text = re.sub(r'\s+', ' ', text).strip().lower()
+    return text
+
+
+def extract_entities(text):
+    """从标题中提取核心实体（品牌、地名、机构/事件关键词）用于相似度计算"""
+    text_lower = normalize_title(text)
+    entities = set()
+
+    # 品牌名
+    for brand in PRESERVE_BRANDS:
+        if brand.lower() in text_lower:
+            entities.add(brand.lower())
+
+    # 地名（含同义词归一化：巴黎->法国）
+    place_pattern = '|'.join(re.escape(p) for p in list(_PLACE_ALIASES.keys()) + [
+        '法国', '德国', '中国', '欧洲', '美国', '英国', '日本', '越南', '印度', '韩国',
+        '巴西', '澳大利亚', '加拿大', '新加坡', '泰国', '马来西亚', '印尼',
+    ])
+    for place in re.findall(f'({place_pattern})', text):
+        canonical = _PLACE_ALIASES.get(place, place)
+        entities.add(canonical)
+
+    # 事件/机构关键词
+    event_keywords = (
+        '法院|上诉|市场|禁令|禁止|暂停|驳回|阻止|关闭|平台|裁定|裁决|判决|审判|'
+        '监管|罚款|调查|收购|合并|上市|融资|IPO|合作|诉讼|关税|制裁'
+    )
+    for kw in re.findall(f'({event_keywords})', text):
+        entities.add(kw)
+
+    return entities
 
 
 def _content_score(news):
