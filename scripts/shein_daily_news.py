@@ -37,25 +37,31 @@ SECRET = os.environ.get("DINGTALK_SECRET", "")
 # 推送时间显示
 PUSH_TIME = "上午10:00"
 
-# 新闻源配置 - RSS源（10+权威媒体，经过验证可用的源）
+# 新闻源配置 - RSS源（经过验证可用的源）
 # region: "cn" 国内源（优先抓取），"intl" 海外源
 RSS_SOURCES = {
     # ==================== 国内源 ====================
-    # 综合财经媒体
-    "sina_finance": {
-        "name": "新浪财经",
-        "rss_url": "https://rss.sina.com.cn/roll/finance/hot_roll.xml",
+    # Google News 中文定向搜索（直接命中 SHEIN/希音，聚合新华、新浪、雨果等国内媒体）
+    "google_news_shein_cn": {
+        "name": "Google新闻(SHEIN中文)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+%E5%B8%8C%E9%9F%B3&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "cn"
     },
-    "sina_tech": {
-        "name": "新浪科技",
-        "rss_url": "https://rss.sina.com.cn/tech/rollnews.xml",
+    "google_news_chuhai": {
+        "name": "Google新闻(中国企业出海)",
+        "rss_url": "https://news.google.com/rss/search?q=%E4%B8%AD%E5%9B%BD%E4%BC%81%E4%B8%9A%E5%87%BA%E6%B5%B7+SHEIN&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
+    },
+    "google_news_kuajing": {
+        "name": "Google新闻(跨境电商SHEIN)",
+        "rss_url": "https://news.google.com/rss/search?q=%E8%B7%A8%E5%A2%83%E7%94%B5%E5%95%86+SHEIN&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "cn"
     },
 
-    # 科技创业媒体
+    # 科技创业媒体（保留，有时有深度报道）
     "36kr": {
         "name": "36氪",
         "rss_url": "https://36kr.com/feed",
@@ -70,26 +76,6 @@ RSS_SOURCES = {
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "cn"
     },
-
-    # 其他国内源
-    "huxiu": {
-        "name": "虎嗅",
-        "rss_url": "https://www.huxiu.com/rss/0.xml",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "cn"
-    },
-    "geekpark": {
-        "name": "极客公园",
-        "rss_url": "https://www.geekpark.net/rss",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "cn"
-    },
-    "cyzone": {
-        "name": "创业邦",
-        "rss_url": "https://www.cyzone.cn/rss/",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "cn"
-    },
     "tmtpost": {
         "name": "钛媒体",
         "rss_url": "https://www.tmtpost.com/rss.xml",
@@ -97,7 +83,7 @@ RSS_SOURCES = {
         "region": "cn"
     },
 
-    # 跨境电商中文媒体
+    # 跨境电商垂直媒体
     "ennews": {
         "name": "亿恩网",
         "rss_url": "https://www.ennews.com/rss",
@@ -105,89 +91,17 @@ RSS_SOURCES = {
         "region": "cn"
     },
 
-    # Google News 中文聚合（替代百度资讯，搜索"中国企业出海"相关）
-    "google_news_chuhai": {
-        "name": "Google新闻(中国企业出海)",
-        "rss_url": "https://news.google.com/rss/search?q=%E4%B8%AD%E5%9B%BD%E4%BC%81%E4%B8%9A%E5%87%BA%E6%B5%B7+SHEIN&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "cn"
-    },
-
     # ==================== 海外源 ====================
-    # 国际电商平台博客
-    "shopify_blog": {
-        "name": "Shopify Blog",
-        "rss_url": "https://www.shopify.com/blog.atom",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-    "shopify_editions": {
-        "name": "Shopify Editions",
-        "rss_url": "https://www.shopify.com/editions/feed",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-    "woocommerce": {
-        "name": "WooCommerce Blog",
-        "rss_url": "https://woocommerce.com/blog/feed/",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-
-    # 电商行业英文媒体
-    "practical_ecommerce": {
-        "name": "Practical Ecommerce",
-        "rss_url": "https://www.practicalecommerce.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-    "sej_ecommerce": {
-        "name": "Search Engine Journal",
-        "rss_url": "https://www.searchenginejournal.com/category/ecommerce/feed/",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-    "search_engine_land": {
-        "name": "Search Engine Land",
-        "rss_url": "https://searchengineland.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-    "martech": {
-        "name": "MarTech",
-        "rss_url": "https://martech.org/feed/",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
+    # 时尚/零售英文媒体（SHEIN 命中率相对较高）
     "retail_dive": {
         "name": "Retail Dive",
         "rss_url": "https://www.retaildive.com/feeds/news/",
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "intl"
     },
-    "digital_commerce_360": {
-        "name": "Digital Commerce 360",
-        "rss_url": "https://www.digitalcommerce360.com/feed/",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
     "modern_retail": {
         "name": "Modern Retail",
         "rss_url": "https://www.modernretail.co/feed/",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-
-    # 时尚零售英文媒体
-    "retail_touchpoints": {
-        "name": "Retail TouchPoints",
-        "rss_url": "https://www.retailtouchpoints.com/feed",
-        "keywords": ["SHEIN", "希音", "shein"],
-        "region": "intl"
-    },
-    "pymnts_ecommerce": {
-        "name": "PYMNTS ECommerce",
-        "rss_url": "https://www.pymnts.com/category/news/ecommerce/feed/",
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "intl"
     },
@@ -203,14 +117,14 @@ RSS_SOURCES = {
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "intl"
     },
-
-    # Google News 聚合
-    "google_news_shein": {
-        "name": "Google新闻(SHEIN)",
-        "rss_url": "https://news.google.com/rss/search?q=SHEIN",
+    "pymnts_ecommerce": {
+        "name": "PYMNTS ECommerce",
+        "rss_url": "https://www.pymnts.com/category/news/ecommerce/feed/",
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "intl"
     },
+
+    # Google News 英文聚合（SHEIN+Temu 关税/监管话题命中率高）
     "google_news_shein_temu": {
         "name": "Google新闻(SHEIN+Temu)",
         "rss_url": "https://news.google.com/rss/search?q=SHEIN+Temu",
@@ -235,7 +149,7 @@ NEWS_APIS = {
     },
     "gnews": {
         "name": "GNews",
-        "enabled": True,
+        "enabled": False,  # 免费版有12小时延迟，无法获取实时资讯；升级付费版可重新启用
         "api_key": "86267ec8967fbe9eade57aba05d14224",
         "endpoint": "https://gnews.io/api/v4/search",
         "params": {
@@ -258,8 +172,8 @@ HTML_SOURCES = {
 
 # 最大新闻条数
 MAX_NEWS_COUNT = 8
-# 时间窗口（小时）- 只获取过去24小时的新闻
-TIME_WINDOW_HOURS = 24
+# 时间窗口（小时）- 只获取过去36小时的新闻（兜底，防止因时区偏差或白天新闻偏少漏掉重要内容）
+TIME_WINDOW_HOURS = 36
 # 相似度阈值 - 超过此值的新闻会被合并（综合字符+实体相似度）
 SIMILARITY_THRESHOLD = 0.5
 # =================================================
@@ -381,7 +295,7 @@ def fetch_rss_news(source_name, source_config):
             # 尝试Atom格式
             items = root.findall('.//{http://www.w3.org/2005/Atom}entry')
         
-        for item in items[:15]:  # 只取前15条
+        for item in items[:20]:  # 只取前20条（Google News 等每次返回较多）
             # 提取标题
             title_elem = item.find('title')
             if title_elem is None:
@@ -399,7 +313,8 @@ def fetch_rss_news(source_name, source_config):
                 if pub_date_elem is None:
                     pub_date_elem = item.find('.//{http://www.w3.org/2005/Atom}updated')
             
-            # 提取描述
+            # 提取描述（优先 content:encoded，内容更完整）
+            content_encoded_elem = item.find('{http://purl.org/rss/1.0/modules/content/}encoded')
             desc_elem = item.find('description')
             if desc_elem is None:
                 desc_elem = item.find('.//{http://www.w3.org/2005/Atom}summary')
@@ -408,6 +323,22 @@ def fetch_rss_news(source_name, source_config):
                 continue
                 
             title = title_elem.text or ""
+
+            # Google News 标题格式为 "新闻标题 - 媒体名"，去掉尾部媒体名
+            # 同时提取媒体来源用于显示
+            actual_source = source_config["name"]
+            if 'news.google.com' in source_config["rss_url"]:
+                # Google News 格式："标题\s*-\s+媒体名"，包括无前导空格的连字符
+                m = re.search(r'^(.*?)\s*[-–—]\s+([^-–—\n]+)$', title)
+                if m:
+                    actual_source = m.group(2).strip()
+                    title = m.group(1).strip()
+                    # 如果标题中还有中间媒体路径（如 "... - 某某新闻客户端"）一并去除
+                    m2 = re.search(r'^(.*?)\s*[-–—]\s+([^-–—\n]+)$', title)
+                    if m2:
+                        suffix2 = m2.group(2).strip().lower()
+                        if not any(k.lower() in suffix2 for k in source_config["keywords"]):
+                            title = m2.group(1).strip()
             
             # 获取链接
             link = ""
@@ -415,9 +346,16 @@ def fetch_rss_news(source_name, source_config):
                 link = link_elem.text or link_elem.get('href', '')
             
             pub_date = pub_date_elem.text if pub_date_elem is not None else ""
-            description = desc_elem.text if desc_elem is not None else ""
+
+            # 描述优先取 content:encoded，其次取 description
+            if content_encoded_elem is not None and content_encoded_elem.text:
+                description = content_encoded_elem.text
+            elif desc_elem is not None:
+                description = desc_elem.text or ""
+            else:
+                description = ""
             
-            # 检查是否包含SHEIN关键词
+            # 检查是否包含SHEIN关键词（标题+描述都检查）
             content_to_check = (title + " " + description).lower()
             if not any(keyword.lower() in content_to_check for keyword in source_config["keywords"]):
                 continue
@@ -432,8 +370,29 @@ def fetch_rss_news(source_name, source_config):
             if time_diff > timedelta(hours=TIME_WINDOW_HOURS):
                 continue
             
-            # 清理描述中的HTML标签
+            # 清理 HTML 标签和实体（&nbsp; &amp; 等）
+            import html as html_mod
             clean_desc = re.sub(r'<[^>]+>', '', description) if description else ""
+            if clean_desc:
+                clean_desc = html_mod.unescape(clean_desc)
+                clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
+
+            # Google News 的 description 通常与标题相同或仅有媒体名，如果和 title 重复就清空
+            if clean_desc and 'news.google.com' in source_config["rss_url"]:
+                # 去掉描述中的媒体名后缀（同标题清理逻辑）
+                m_d = re.search(r'^(.*?)\s*[-–—]\s+([^-–—\n]+)$', clean_desc)
+                if m_d:
+                    clean_desc_body = m_d.group(1).strip()
+                    m_d2 = re.search(r'^(.*?)\s*[-–—]\s+([^-–—\n]+)$', clean_desc_body)
+                    if m_d2:
+                        suf = m_d2.group(2).strip().lower()
+                        if not any(k.lower() in suf for k in source_config["keywords"]):
+                            clean_desc_body = m_d2.group(1).strip()
+                    # 如果清理后与标题一样，不显示描述
+                    if clean_desc_body.lower() == title.lower():
+                        clean_desc = ""
+                    else:
+                        clean_desc = clean_desc_body
 
             # 翻译英文内容
             if is_english_text(title):
@@ -444,7 +403,7 @@ def fetch_rss_news(source_name, source_config):
             news_list.append({
                 "title": title.strip(),
                 "link": link.strip(),
-                "source": source_config["name"],
+                "source": actual_source,
                 "pub_time": pub_datetime,
                 "description": clean_desc.strip()[:200] if clean_desc else "",
                 "hours_ago": int(time_diff.total_seconds() / 3600)
@@ -501,7 +460,7 @@ def fetch_newsapi_news():
 
 
 def fetch_gnews_news():
-    """从GNews获取新闻"""
+    """从GNews获取新闻（免费版有12小时延迟限制，仅作补充）"""
     news_list = []
     api_config = NEWS_APIS.get("gnews")
 
@@ -518,7 +477,19 @@ def fetch_gnews_news():
         response = requests.get(api_config["endpoint"], params=params, timeout=15)
         data = response.json()
 
-        for article in data.get("articles", [])[:MAX_NEWS_COUNT]:
+        # 检测免费版限制提示
+        if data.get("information"):
+            for k, v in data["information"].items():
+                msg = v.get("message", "") if isinstance(v, dict) else str(v)
+                if msg:
+                    print(f"[{datetime.now()}] GNews提示: {msg[:100]}")
+
+        articles = data.get("articles", [])
+        if not articles:
+            print(f"[{datetime.now()}] GNews返回0条文章（免费版数据延迟或超出额度），跳过")
+            return news_list
+
+        for article in articles[:MAX_NEWS_COUNT]:
             pub_datetime = parse_pub_date(article.get("publishedAt", ""))
             if pub_datetime is None:
                 continue
@@ -608,7 +579,10 @@ def fetch_baijing_news(source_config):
 
             description = ""
             if desc_match:
-                description = re.sub(r'<[^>]+>', '', desc_match.group(1)).strip()[:200]
+                import html
+                description = re.sub(r'<[^>]+>', '', desc_match.group(1)).strip()
+                description = html.unescape(description)
+                description = re.sub(r'\s+', ' ', description).strip()[:200]
 
             # 检查是否包含关键词
             content_to_check = (title + " " + description).lower()
@@ -635,42 +609,66 @@ def fetch_baijing_news(source_config):
     return news_list
 
 
+# UTC+8 偏移量，用于将带时区信息的 UTC 时间转换为北京时间（本地时间）
+_UTC8 = timedelta(hours=8)
+
+
 def parse_pub_date(pub_date_str):
-    """解析发布时间，统一返回 naive datetime"""
-    def _strip_tz(dt):
-        return dt.replace(tzinfo=None) if dt.tzinfo else dt
+    """解析发布时间，统一返回北京时间 naive datetime（UTC+8）
+
+    带时区信息（如 GMT/+00:00）的时间统一转为 UTC+8 再去掉 tzinfo；
+    无时区信息的字符串（国内媒体通常直接输出北京时间）直接保留。
+    这样所有时间都与 datetime.now()（本机 UTC+8）直接可比。
+    """
+    def _to_local(dt):
+        """带 tzinfo 的 datetime 转换为北京时间 naive；无 tzinfo 直接返回"""
+        if dt.tzinfo:
+            # 转换为 UTC，再加 8 小时得到北京时间，去掉 tzinfo
+            utc_naive = dt.utctimetuple()
+            import calendar
+            ts = calendar.timegm(utc_naive)
+            return datetime(1970, 1, 1) + timedelta(seconds=ts) + _UTC8
+        return dt
 
     if not pub_date_str:
         return datetime.now()
-    
-    # 尝试多种日期格式
-    date_formats = [
+
+    # 带时区格式（GMT / %z）
+    tz_formats = [
         "%a, %d %b %Y %H:%M:%S %z",
         "%a, %d %b %Y %H:%M:%S GMT",
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d %H:%M",
-        "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%dT%H:%M:%S%z",
         "%Y-%m-%dT%H:%M:%SZ",
         "%Y-%m-%dT%H:%M:%S.%fZ",
     ]
-    
-    for fmt in date_formats:
+    for fmt in tz_formats:
         try:
-            return _strip_tz(datetime.strptime(pub_date_str.strip(), fmt))
+            dt = datetime.strptime(pub_date_str.strip(), fmt)
+            return _to_local(dt)
         except:
             continue
-    
+
+    # 无时区格式（国内媒体，直接视为北京时间）
+    local_formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M:%S",
+    ]
+    for fmt in local_formats:
+        try:
+            return datetime.strptime(pub_date_str.strip(), fmt)
+        except:
+            continue
+
     # 尝试提取日期部分
     try:
-        # 匹配 YYYY-MM-DD 格式
         match = re.search(r'(\d{4}-\d{2}-\d{2})', pub_date_str)
         if match:
-            return _strip_tz(datetime.strptime(match.group(1), "%Y-%m-%d"))
+            return datetime.strptime(match.group(1), "%Y-%m-%d")
     except:
         pass
-    
-    # 如果都失败了，返回当前时间（假设是最新的）
+
+    # 都失败了，返回当前时间（假设是最新的）
     return datetime.now()
 
 
