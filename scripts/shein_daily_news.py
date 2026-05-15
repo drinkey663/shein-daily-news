@@ -384,6 +384,11 @@ def fetch_rss_news(source_name, source_config):
             link = ""
             if link_elem is not None:
                 link = link_elem.text or link_elem.get('href', '')
+
+            # 修正源头数据错误：亿恩网 RSS 返回的链接域名是 www.en.com（错误），
+            # 实际应为 www.ennews.com，否则点击 404
+            if link and 'www.en.com' in link:
+                link = link.replace('http://www.en.com', 'https://www.ennews.com').replace('https://www.en.com', 'https://www.ennews.com')
             
             pub_date = pub_date_elem.text if pub_date_elem is not None else ""
 
@@ -907,9 +912,17 @@ def compute_importance(news):
 
 
 def compute_similarity(news_a, news_b):
-    """计算两条新闻的相似度，综合字符相似度和实体重叠度"""
-    title_a = normalize_title(news_a.get('title') or '')
-    title_b = normalize_title(news_b.get('title') or '')
+    """计算两条新闻的相似度，综合字符相似度和实体重叠度
+
+    防止误合并：
+    - 实体使用 Jaccard 系数 + 最小分母 2，避免单实体重叠 = 1.0
+    - 增加事件关键词硬约束：两条新闻必须共享至少一个事件关键词，否则不合并
+    - 字符相似度过低（<0.3）时直接判为不相似
+    """
+    title_a_raw = news_a.get('title') or ''
+    title_b_raw = news_b.get('title') or ''
+    title_a = normalize_title(title_a_raw)
+    title_b = normalize_title(title_b_raw)
 
     if not title_a or not title_b:
         return 0.0
@@ -917,11 +930,25 @@ def compute_similarity(news_a, news_b):
     # 1) 字符级相似度
     char_sim = SequenceMatcher(None, title_a, title_b).ratio()
 
-    # 2) 实体重叠度
-    ent_a = extract_entities(news_a.get('title') or '')
-    ent_b = extract_entities(news_b.get('title') or '')
+    # 字符相似度过低 → 不可能是同一事件，直接返回（但允许实体强重叠时仍判定）
+    # 注：单纯标题完全不像（如"深圳严查"vs"激战法庭"）即使品牌相同也不应合并
+    if char_sim < 0.3:
+        # 进一步要求事件关键词强重叠才允许合并
+        ent_a = extract_entities(title_a_raw)
+        ent_b = extract_entities(title_b_raw)
+        # 事件关键词（与品牌/地名分开判断）
+        event_a = ent_a - {'shein', 'temu', '中国', '美国', '欧洲', '法国', '德国', '英国', '日本', '越南', '印度', '韩国', '巴西', '澳大利亚', '加拿大', '新加坡', '泰国', '马来西亚', '印尼'}
+        event_b = ent_b - {'shein', 'temu', '中国', '美国', '欧洲', '法国', '德国', '英国', '日本', '越南', '印度', '韩国', '巴西', '澳大利亚', '加拿大', '新加坡', '泰国', '马来西亚', '印尼'}
+        # 没有共同事件关键词 → 直接判定不相似
+        if not (event_a & event_b):
+            return 0.0
+
+    # 2) 实体重叠度（Jaccard 系数，分母至少为 2，避免单实体即 100% 重合）
+    ent_a = extract_entities(title_a_raw)
+    ent_b = extract_entities(title_b_raw)
     if ent_a and ent_b:
-        ent_overlap = len(ent_a & ent_b) / min(len(ent_a), len(ent_b))
+        union_size = len(ent_a | ent_b)
+        ent_overlap = len(ent_a & ent_b) / max(union_size, 2)
     else:
         ent_overlap = 0.0
 
@@ -933,8 +960,8 @@ def compute_similarity(news_a, news_b):
         desc_sim = SequenceMatcher(None, desc_a[:200], desc_b[:200]).ratio()
         desc_bonus = 0.1 * desc_sim
 
-    # 综合得分：实体权重更高（同一事件不同媒体措辞差异大，但实体一致）
-    combined = 0.35 * char_sim + 0.65 * ent_overlap + desc_bonus
+    # 综合得分：字符权重提升（同一事件标题字面重合度通常较高）
+    combined = 0.5 * char_sim + 0.5 * ent_overlap + desc_bonus
 
     return min(combined, 1.0)
 
