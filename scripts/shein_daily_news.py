@@ -130,6 +130,46 @@ RSS_SOURCES = {
         "rss_url": "https://news.google.com/rss/search?q=SHEIN+Temu",
         "keywords": ["SHEIN", "希音", "shein"],
         "region": "intl"
+    },
+
+    # ==================== 关键事件专项查询（兜底重大事件） ====================
+    # 中文：调查/监管/上市
+    "google_news_shein_diaocha_cn": {
+        "name": "Google新闻(SHEIN+调查)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+%E8%B0%83%E6%9F%A5&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
+    },
+    "google_news_shein_jianguan_cn": {
+        "name": "Google新闻(SHEIN+监管)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+%E7%9B%91%E7%AE%A1&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
+    },
+    "google_news_shein_ipo_cn": {
+        "name": "Google新闻(SHEIN+上市)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+%E4%B8%8A%E5%B8%82&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "cn"
+    },
+    # 英文：investigation/regulation/IPO
+    "google_news_shein_investigation": {
+        "name": "Google News(SHEIN+investigation)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+investigation",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "google_news_shein_regulation": {
+        "name": "Google News(SHEIN+regulation)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+regulation",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
+    },
+    "google_news_shein_ipo_intl": {
+        "name": "Google News(SHEIN+IPO)",
+        "rss_url": "https://news.google.com/rss/search?q=SHEIN+IPO",
+        "keywords": ["SHEIN", "希音", "shein"],
+        "region": "intl"
     }
 }
 
@@ -172,8 +212,8 @@ HTML_SOURCES = {
 
 # 最大新闻条数
 MAX_NEWS_COUNT = 8
-# 时间窗口（小时）- 只获取过去24小时的新闻
-TIME_WINDOW_HOURS = 24
+# 时间窗口（小时）- 设为36小时，避免重要新闻在两次执行之间因RSS排序漂移被漏抓
+TIME_WINDOW_HOURS = 36
 # 相似度阈值 - 超过此值的新闻会被合并（综合字符+实体相似度）
 SIMILARITY_THRESHOLD = 0.5
 # =================================================
@@ -295,7 +335,7 @@ def fetch_rss_news(source_name, source_config):
             # 尝试Atom格式
             items = root.findall('.//{http://www.w3.org/2005/Atom}entry')
         
-        for item in items[:20]:  # 只取前20条（Google News 等每次返回较多）
+        for item in items[:50]:  # 取前50条（Google News 等高频源信息密集，避免重要新闻被新热点挤出）
             # 提取标题
             title_elem = item.find('title')
             if title_elem is None:
@@ -752,6 +792,8 @@ def fetch_all_news():
         all_news.extend(news)
         if news:
             print(f"[{datetime.now()}] 从 {source_config['name']} 获取到 {len(news)} 条新闻")
+            for n in news:
+                print(f"    - [{n['pub_time'].strftime('%Y-%m-%d %H:%M')}] [{n['source']}] {n['title'][:80]}")
         time.sleep(1)  # 避免请求过快
 
     # 从HTML页面源获取（国内源优先）
@@ -768,6 +810,8 @@ def fetch_all_news():
         all_news.extend(news)
         if news:
             print(f"[{datetime.now()}] 从 {source_config['name']} 获取到 {len(news)} 条新闻")
+            for n in news:
+                print(f"    - [{n['pub_time'].strftime('%Y-%m-%d %H:%M')}] [{n['source']}] {n['title'][:80]}")
         time.sleep(1)
     
     # 从NewsAPI获取（如果已启用）
@@ -814,7 +858,52 @@ def fetch_all_news():
 
     print(f"[{datetime.now()}] 去重合并：{total_before} → {len(merged_news)} 条")
 
+    # 重要度加权：监管/诉讼/IPO 等重大事件优先保留，避免被截断丢弃
+    # 排序键：(重要度降序, 多源数降序, 时间降序)
+    merged_news.sort(
+        key=lambda n: (
+            -compute_importance(n),
+            -len(n.get('sources', [n.get('source', '')])),
+            -n['pub_time'].timestamp() if n.get('pub_time') else 0
+        )
+    )
+
+    # 打印重要度分级（便于排查）
+    high_priority = [n for n in merged_news if compute_importance(n) >= 2]
+    if high_priority:
+        print(f"[{datetime.now()}] 高重要度事件 {len(high_priority)} 条（优先保留）")
+        for n in high_priority[:5]:
+            print(f"    ⭐ [{n['source']}] {n['title'][:80]}")
+
     return merged_news[:MAX_NEWS_COUNT]
+
+
+# 重大事件关键词 → 重要度评分
+# 重要度 ≥2 的新闻在最终截断时优先保留，确保监管/诉讼/IPO 等重大事件不会被普通新闻挤掉
+_IMPORTANCE_KEYWORDS = {
+    3: [  # 最高重要度：监管调查/诉讼/数据安全
+        '调查', '诉讼', '禁令', '罚款', '处罚', '裁定', '裁决', '判决', '反垄断', '数据保护', '数据合规',
+        'investigation', 'lawsuit', 'fine', 'penalty', 'ruling', 'antitrust', 'gdpr', 'data protection',
+        'dpc', 'data transfer',
+    ],
+    2: [  # 较高重要度：监管/合规/IPO/上市
+        '监管', '合规', '禁止', '暂停', '审查', 'ipo', '上市', '招股', '挂牌', '估值', '反垄断',
+        'regulation', 'compliance', 'sec filing', 'listing', 'valuation', 'probe',
+    ],
+    1: [  # 普通重要度：合作/扩张/财报
+        '合作', '扩张', '财报', '战略', 'partnership', 'expansion', 'earnings',
+    ],
+}
+
+
+def compute_importance(news):
+    """计算新闻重要度（0-3）。监管/诉讼类事件分数高，截断时优先保留"""
+    text = ((news.get('title') or '') + ' ' + (news.get('description') or '')).lower()
+    for score in (3, 2, 1):
+        for kw in _IMPORTANCE_KEYWORDS[score]:
+            if kw.lower() in text:
+                return score
+    return 0
 
 
 def compute_similarity(news_a, news_b):
