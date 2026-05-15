@@ -211,7 +211,7 @@ HTML_SOURCES = {
 }
 
 # 最大新闻条数
-MAX_NEWS_COUNT = 8
+MAX_NEWS_COUNT = 5
 # 时间窗口（小时）- 设为36小时，避免重要新闻在两次执行之间因RSS排序漂移被漏抓
 TIME_WINDOW_HOURS = 36
 # 相似度阈值 - 超过此值的新闻会被合并（综合字符+实体相似度）
@@ -863,22 +863,25 @@ def fetch_all_news():
 
     print(f"[{datetime.now()}] 去重合并：{total_before} → {len(merged_news)} 条")
 
-    # 重要度加权：监管/诉讼/IPO 等重大事件优先保留，避免被截断丢弃
-    # 排序键：(重要度降序, 多源数降序, 时间降序)
+    # 重要度加权：监管/诉讼/上市/合规等重大事件优先保留，避免被截断丢弃
+    # 排序键：(重要度降序, 多源媒体数降序, 时间降序)
+    # 多源媒体数 = len(all_links)，反映"去重前匹配到的媒体数量"，多家报道=重大事件
     merged_news.sort(
         key=lambda n: (
             -compute_importance(n),
-            -len(n.get('sources', [n.get('source', '')])),
+            -len(n.get('all_links', [{'link': n.get('link', '')}])),
             -n['pub_time'].timestamp() if n.get('pub_time') else 0
         )
     )
 
-    # 打印重要度分级（便于排查）
+    # 打印重要度分级 + 多源数（便于排查）
     high_priority = [n for n in merged_news if compute_importance(n) >= 2]
     if high_priority:
         print(f"[{datetime.now()}] 高重要度事件 {len(high_priority)} 条（优先保留）")
         for n in high_priority[:5]:
-            print(f"    ⭐ [{n['source']}] {n['title'][:80]}")
+            media_count = len(n.get('all_links', [1]))
+            score = compute_importance(n)
+            print(f"    ⭐[importance={score}|媒体数={media_count}] [{n['source']}] {n['title'][:80]}")
 
     return merged_news[:MAX_NEWS_COUNT]
 
@@ -886,14 +889,16 @@ def fetch_all_news():
 # 重大事件关键词 → 重要度评分
 # 重要度 ≥2 的新闻在最终截断时优先保留，确保监管/诉讼/IPO 等重大事件不会被普通新闻挤掉
 _IMPORTANCE_KEYWORDS = {
-    3: [  # 最高重要度：监管调查/诉讼/数据安全
-        '调查', '诉讼', '禁令', '罚款', '处罚', '裁定', '裁决', '判决', '反垄断', '数据保护', '数据合规',
-        'investigation', 'lawsuit', 'fine', 'penalty', 'ruling', 'antitrust', 'gdpr', 'data protection',
-        'dpc', 'data transfer',
+    3: [  # 最高重要度：上市/合规/监管调查/诉讼
+        '上市', '招股', '挂牌', 'ipo', 'listing', 'sec filing',
+        '合规', 'compliance', 'gdpr', '数据保护', '数据合规',
+        '调查', '诉讼', '禁令', '罚款', '处罚', '裁定', '裁决', '判决', '反垄断',
+        'investigation', 'lawsuit', 'fine', 'penalty', 'ruling', 'antitrust',
+        'data protection', 'dpc', 'data transfer',
     ],
-    2: [  # 较高重要度：监管/合规/IPO/上市
-        '监管', '合规', '禁止', '暂停', '审查', 'ipo', '上市', '招股', '挂牌', '估值', '反垄断',
-        'regulation', 'compliance', 'sec filing', 'listing', 'valuation', 'probe',
+    2: [  # 较高重要度：监管/审查/估值
+        '监管', '禁止', '暂停', '审查', '估值',
+        'regulation', 'valuation', 'probe',
     ],
     1: [  # 普通重要度：合作/扩张/财报
         '合作', '扩张', '财报', '战略', 'partnership', 'expansion', 'earnings',
