@@ -835,6 +835,21 @@ def fetch_all_news():
         if news:
             print(f"[{datetime.now()}] 从 GNews 获取到 {len(news)} 条新闻")
     
+    # SHEIN 相关性过滤：标题或描述必须显式提及 SHEIN/希音/Shein
+    # 防止亿恩网/百镜等全量推送的国内 RSS 把无关跨境新闻（如「追觅反舞弊」）混入
+    _SHEIN_KEYWORDS = ('shein', '希音', '希音')  # 兼容大小写与中文写法
+    def _is_shein_related(n):
+        text = (n.get('title', '') + ' ' + n.get('description', '')).lower()
+        return any(kw in text for kw in _SHEIN_KEYWORDS)
+
+    before_filter = len(all_news)
+    filtered_out = [n for n in all_news if not _is_shein_related(n)]
+    all_news = [n for n in all_news if _is_shein_related(n)]
+    if filtered_out:
+        print(f"[{datetime.now()}] SHEIN 相关性过滤：{before_filter} → {len(all_news)} 条（剔除 {len(filtered_out)} 条无关新闻）")
+        for n in filtered_out[:10]:
+            print(f"    ✖ [{n['source']}] {n['title'][:60]}")
+
     # 按时间排序，最新的在前
     all_news.sort(key=lambda x: x["pub_time"], reverse=True)
 
@@ -1012,10 +1027,25 @@ def extract_entities(text):
     # 事件/机构关键词
     event_keywords = (
         '法院|上诉|市场|禁令|禁止|暂停|驳回|阻止|关闭|平台|裁定|裁决|判决|审判|'
-        '监管|罚款|调查|收购|合并|上市|融资|IPO|合作|诉讼|关税|制裁'
+        '监管|罚款|调查|收购|出售|合并|上市|融资|IPO|合作|诉讼|关税|制裁'
     )
+    # 同义事件归一：同一交易的不同叙述视角归为同一事件词，避免包装不同导致 Jaccard 偏低
+    _EVENT_ALIASES = {'出售': '收购'}  # 出售/收购 是同一交易的两端
     for kw in re.findall(f'({event_keywords})', text):
-        entities.add(kw)
+        entities.add(_EVENT_ALIASES.get(kw, kw))
+
+    # ASCII 大写专有名词（如 Everlane、Inditex、Anker 等英文品牌名），长度≥4，排除常见停用词
+    _STOPWORDS = {
+        'the', 'and', 'with', 'from', 'after', 'before', 'inside', 'latest',
+        'news', 'times', 'asia', 'world', 'today', 'report', 'reports',
+        'china', 'usa', 'europe', 'france', 'germany', 'japan', 'india',
+        'fashion', 'retail', 'business', 'company', 'group', 'global',
+        'million', 'billion', 'dollar', 'about', 'amid', 'over',
+    }
+    for word in re.findall(r'(?<![A-Za-z])[A-Z][a-zA-Z]{3,}(?![A-Za-z])', text):
+        wl = word.lower()
+        if wl not in _STOPWORDS and wl not in {b.lower() for b in PRESERVE_BRANDS}:
+            entities.add(wl)
 
     return entities
 
